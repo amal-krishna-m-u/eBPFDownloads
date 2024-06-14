@@ -2,8 +2,8 @@
 
 struct ext4_event {
     u32 pid;
-    u32 pblk;
-    u32 lblk_len;
+    ext4_fsblk_t pblk;
+    unsigned int len;
     char comm[16];
 };
 
@@ -22,7 +22,7 @@ int trace_ext4_ext_map_blocks_exit(struct trace_event_raw_ext4__map_blocks_exit 
 
     event->pid = bpf_get_current_pid_tgid();
     event->pblk = ctx->pblk;
-    event->lblk_len = ctx->len;
+    event->len = ctx->len;
     bpf_get_current_comm(&event->comm, sizeof(event->comm));
 
     bpf_ringbuf_submit(event, 0);
