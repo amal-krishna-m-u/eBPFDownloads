@@ -63,7 +63,7 @@ func main() {
 			}
 
 			comm := string(bytes.Trim(data.Comm[:], "\x00"))
-			log.Printf("Event received: PID: %d, Comm: %s lblk: %s pblk: %s \n", data.PID, comm, data.Len, data.Pblk)
+			log.Printf("Event received: PID: %d, Comm: %s lblk: %s \n", data.PID, comm, data.Len)
 		}
 	}()
 
