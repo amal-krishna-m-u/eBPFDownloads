@@ -3,16 +3,18 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
-	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/ringbuf"
+	"github.com/cilium/ebpf/rlimit"
 )
+
+// $BPF_CLANG and $BPF_CFLAGS are set by the Makefile.
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target native bpf trace_ext4.c -- -I../bpf/headers
 
 type ext4Event struct {
 	PID     uint32
@@ -22,63 +24,47 @@ type ext4Event struct {
 }
 
 func main() {
-	// Load the compiled eBPF program
-	spec, err := ebpf.LoadCollectionSpec("trace_ext4.o")
+
+	stopper := make(chan os.Signal, 1)
+	signal.Notify(stopper, os.Interrupt, syscall.SIGTERM)
+
+	if err := rlimit.RemoveMemlock(); err != nil {
+		log.Fatal(err)
+
+	}
+
+	objs := bpfObjects{}
+	if err := loadBpfObjects(&objs, nil); err != nil {
+		log.Fatalf("loading objects: %v", err)
+	}
+	defer objs.Close()
+
+	tpEnterLink, err := link.Tracepoint("ext4", "ext4_ext_map_blocks_exit", objs.TraceExt4ExtMapBlocksExit, nil)
 	if err != nil {
-		log.Fatalf("Failed to load eBPF spec: %v", err)
+		log.Fatal("Failed to attach tracepoint: %s", err)
 	}
+	defer tpEnterLink.Close()
 
-	coll, err := ebpf.NewCollection(spec)
+	events := objs.Events
+	rd, err := ringbuf.NewReader(events)
 	if err != nil {
-		log.Fatalf("Failed to create eBPF collection: %v", err)
+		log.Fatal("Failed to create ringbuf reader: %s", err)
 	}
-	defer coll.Close()
+	defer rd.Close()
 
-	prog := coll.Programs["trace_ext4_ext_map_blocks_exit"]
-	if prog == nil {
-		log.Fatalf("Failed to find eBPF program: %v", err)
-	}
-
-	// Attach the eBPF program to the tracepoint
-	tp, err := link.Tracepoint("ext4", "ext4_ext_map_blocks_exit", prog)
-	if err != nil {
-		log.Fatalf("Failed to attach to tracepoint: %v", err)
-	}
-	defer tp.Close()
-
-	// Open the perf event reader
-	reader, err := perf.NewReader(coll.Maps["events"], os.Getpagesize())
-	if err != nil {
-		log.Fatalf("Failed to open perf reader: %v", err)
-	}
-	defer reader.Close()
-
-	// Set up signal handling to exit cleanly
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-
-	log.Println("Waiting for events...")
-
-	for {
-		select {
-		case <-sig:
-			log.Println("Exiting...")
-			return
-		default:
-			record, err := reader.Read()
+	go func() {
+		for {
+			record, err := rd.Read()
 			if err != nil {
-				if perf.IsEndOfBuffer(err) {
-					continue
-				}
-				log.Fatalf("Failed to read from perf reader: %v", err)
+				log.Fatal("Failed to read record: %s", err)
 			}
-
 			var event ext4Event
-			if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
-				log.Fatalf("Failed to decode received data: %v", err)
+			if err := binary.Read(bytes.NewReader(record), binary.LittleEndian, &event); err != nil {
+				log.Fatal("Failed to decode event: %s", err)
 			}
-
-			fmt.Printf("PID: %d, Pblk: %d, LblkLen: %d, Comm: %s\n", event.PID, event.Pblk, event.LblkLen, string(event.Comm[:bytes.IndexByte(event.Comm[:], 0)]))
+			log.Printf("PID: %d, Pblk: %d, LblkLen: %d, Comm: %s\n", event.PID, event.Pblk, event.LblkLen, event.Comm)
 		}
-	}
+	}()
+
+	<-stopper
 }
