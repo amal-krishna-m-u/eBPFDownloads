@@ -17,10 +17,10 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target native bpf trace_ext4.c -- -I../bpf/headers
 
 type ext4Event struct {
-	PID     uint32
-	Pblk    uint64
-	LblkLen uint32
-	Comm    [16]byte
+	PID uint32
+	// Pblk    uint64
+	// LblkLen uint32
+	Comm [16]byte
 }
 
 func main() {
