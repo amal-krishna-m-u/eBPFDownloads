@@ -56,13 +56,14 @@ func main() {
 			if err != nil {
 				log.Fatalf("Failed to read record: %s", err)
 			}
-			var event ext4Event
-			err = binary.Read(bytes.NewReader(record.RawSample), binary.LittleEndian, &event)
-			if err != nil {
-				log.Fatalf("Failed to decode event: %s", err)
+			var data ext4Event
+			if err := binary.Read(bytes.NewReader(record.RawSample), binary.LittleEndian, &data); err != nil {
+				log.Printf("Error decoding event: %s", err)
 				continue
 			}
-			log.Printf("PID: %d, Pblk: %d, LblkLen: %d, Comm: %s\n", event.PID, event.Pblk, event.LblkLen, event.Comm)
+
+			comm := string(bytes.Trim(data.Comm[:], "\x00"))
+			log.Printf("Event received: PID: %d, Comm: %s\n", data.PID, comm)
 		}
 	}()
 
