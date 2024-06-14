@@ -60,6 +60,7 @@ func main() {
 			err = binary.Read(bytes.NewReader(record.RawSample), binary.LittleEndian, &event)
 			if err != nil {
 				log.Fatalf("Failed to decode event: %s", err)
+				continue
 			}
 			log.Printf("PID: %d, Pblk: %d, LblkLen: %d, Comm: %s\n", event.PID, event.Pblk, event.LblkLen, event.Comm)
 		}
