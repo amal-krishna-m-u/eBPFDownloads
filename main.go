@@ -17,8 +17,8 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target native bpf trace_ext4.c -- -I../bpf/headers
 
 type ext4Event struct {
-	PID  uint32   // equivalent to u32
-	Pblk uint64   // equivalent to ext4_fsblk_t
+	PID uint32 // equivalent to u32
+	// Pblk uint64   // equivalent to ext4_fsblk_t
 	Len  uint32   // equivalent to unsigned int
 	Comm [16]byte // equivalent to char[16]
 }
