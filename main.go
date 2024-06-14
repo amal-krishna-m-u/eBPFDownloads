@@ -20,6 +20,8 @@ type ext4Event struct {
 	PID uint32
 	// Pblk    uint64
 	// LblkLen uint32
+	Pblk ext4_fsblk_t
+	lblk ext4_lblk_t
 	Comm [16]byte
 }
 
@@ -63,7 +65,7 @@ func main() {
 			}
 
 			comm := string(bytes.Trim(data.Comm[:], "\x00"))
-			log.Printf("Event received: PID: %d, Comm: %s\n", data.PID, comm)
+			log.Printf("Event received: PID: %d, Comm: %s lblk: %s pblk: %s \n", data.PID, comm, data.lblk, data.Pblk)
 		}
 	}()
 
