@@ -18,7 +18,8 @@ import (
 
 type ext4Event struct {
 	PID uint32 // equivalent to u32
-	// Pblk uint64   // equivalent to ext4_fsblk_t
+	// equivalent to ext4_fsblk_t
+	Pblk interface{}
 	Len  uint32   // equivalent to unsigned int
 	Comm [16]byte // equivalent to char[16]
 }
@@ -63,7 +64,7 @@ func main() {
 			}
 
 			comm := string(bytes.Trim(data.Comm[:], "\x00"))
-			log.Printf("Event received: PID: %d, Comm: %s lblk: %v \n", data.PID, comm, data.Len)
+			log.Printf("Event received: PID: %d, Comm: %s lblk: %v  Pblk: %v\n", data.PID, comm, data.Len, data.Pblk)
 		}
 	}()
 
