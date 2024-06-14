@@ -19,7 +19,7 @@ import (
 type ext4Event struct {
 	PID uint32 // equivalent to u32
 	// equivalent to ext4_fsblk_t
-	Pblk interface{}
+	// Pblk interface{}
 	Len  uint32   // equivalent to unsigned int
 	Comm [16]byte // equivalent to char[16]
 }
